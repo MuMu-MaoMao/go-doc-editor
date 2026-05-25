@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - 文档编辑器</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="auth-container">
+    <h2>登录</h2>
+    <div id="errorMsg" class="error"></div>
+    <input type="text" id="username" placeholder="用户名" autocomplete="username">
+    <input type="password" id="password" placeholder="密码" autocomplete="current-password">
+    <button id="loginBtn">登录</button>
+    <div class="link">还没有账号？ <a href="/register.html">立即注册</a></div>
+    <div class="link"><a href="/">返回首页</a></div>
+</div>
+<script type="module">
+    import { setToken } from '/static/auth.js';
+    const loginBtn = document.getElementById('loginBtn');
+    const errorDiv = document.getElementById('errorMsg');
+    loginBtn.addEventListener('click', async () => {
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+        if (!username || !password) {
+            errorDiv.textContent = '请填写完整信息';
+            return;
+        }
+        try {
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setToken(data.token);
+                window.location.href = '/';
+            } else {
+                errorDiv.textContent = data.error || '登录失败';
+            }
+        } catch (err) {
+            errorDiv.textContent = '网络错误';
+        }
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>编辑器 - Go 文档编辑器</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="app">
+    <header>
+        <h1>本地文档<code>编辑器</code></h1>
+        <p><code>文档保存在 C:\doxreader</code></p>
+    </header>
+    <div class="main">
+        <div class="sidebar">
+            <h3>文档列表 <button id="refreshBtn" style="background:none; border:none; cursor:pointer;">↻</button></h3>
+            <ul class="file-list" id="fileList"><li style="justify-content:center;">加载中...</li></ul>
+            <div class="new-file">
+                <input type="text" id="newFileName" placeholder="新建文件，例如 笔记.txt">
+                <button id="createBtn">+ 新建文档</button>
+            </div>
+        </div>
+        <div class="editor">
+            <div class="toolbar">
+                <span class="current-file-badge" id="currentFile">未选择文件</span>
+                <div class="action-buttons">
+                    <button id="saveBtn">保存</button>
+                    <button id="aiSendToChatBtn" title="将当前文档内容发送给 AI 处理">📤 问 AI</button>
+                    <button id="deleteCurrentBtn">🗑 删除当前</button>
+                </div>
+            </div>
+            <textarea id="editor" placeholder="选择或新建一个文档开始编辑..."></textarea>
+            <div class="status" id="statusMsg">就绪</div>
+        </div>
+    </div>
+</div>
+
+<!-- ====== AI 对话面板 ====== -->
+<button id="aiChatToggle" class="ai-toggle-btn" title="AI 助手">💬</button>
+
+<div id="aiChatPanel" class="ai-chat-panel">
+    <div class="ai-chat-header">
+        <span>🤖 AI 助手 (DeepSeek-Flash)</span>
+        <div class="ai-chat-actions">
+            <button id="aiChatClear" title="清空对话">🗑</button>
+            <button id="aiChatClose" title="关闭">✕</button>
+        </div>
+    </div>
+    <div class="ai-chat-messages" id="aiChatMessages"></div>
+    <div class="ai-chat-input-area">
+        <div class="ai-chat-input-toolbar">
+            <button id="aiChatAttachDoc" title="附带当前文档内容" class="attach-btn">📎 附带文档</button>
+        </div>
+        <div class="ai-chat-input-row">
+            <textarea id="aiChatInput" placeholder="输入你的问题..." rows="3"></textarea>
+            <button id="aiChatSend">发送</button>
+        </div>
+    </div>
+</div>
+
+<!-- Markdown 渲染库 -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<!-- DOMPurify XSS 防护 -->
+<script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
+
+<script type="module" src="/static/auth.js"></script>
+<script type="module" src="/static/editor.js"></script>
+<script type="module" src="/static/ai-chat.js"></script>
+</body>
+</html>

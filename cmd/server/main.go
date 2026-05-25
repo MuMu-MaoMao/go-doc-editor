@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net/http"
 	"os"
@@ -14,6 +15,14 @@ import (
 )
 
 func main() {
+	// 定义命令行参数 --ai-key
+	aiKey := flag.String("ai-key", "", "API Key for AI service (required)")
+	flag.Parse()
+
+	if *aiKey == "" {
+		log.Fatal("请通过 --ai-key 参数提供 AI 服务的 API Key，例如: go run main.go --ai-key=你的新Key")
+	}
+
 	cfg := config.Load()
 
 	// 用户存储（文件保存在基础存储目录的同级 data 文件夹）
@@ -27,12 +36,11 @@ func main() {
 	}
 
 	fileService := service.NewFileService(cfg.StorageDir)
-	// 创建 AI 服务
-	aiService := service.NewAIService("sk-664c572e17fd40d6aacfa476c05c475e")
+	// 使用命令行参数传入的 Key 创建 AI 服务
+	aiService := service.NewAIService(*aiKey)
 
 	authHandler := handler.NewAuthHandler(userStore)
 	fileHandler := handler.NewFileHandler(fileService)
-	// 创建 AI 处理器
 	aiHandler := handler.NewAIHandler(aiService)
 
 	// 公开路由

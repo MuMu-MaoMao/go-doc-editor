@@ -37,7 +37,7 @@
 | 需求 | 说明 |
 |------|------|
 | 模型 | `deepseek-chat` (DeepSeek-Flash) |
-| API 密钥 | `sk-664c572e17fd40d6aacfa476c05c475e`（保存在后端） |
+| API 密钥 |  |
 | 请求链路 | 前端 → 后端 Go API → DeepSeek API → 后端流式返回 → 前端 SSE |
 | 集成范围 | **前端 + 后端**均需修改 |
 | 新增文件 | 3 个：`internal/service/ai_service.go`、`internal/handler/ai_handler.go`、`static/ai-chat.js` |

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"go-doc-editor/internal/config"
 	"go-doc-editor/internal/handler"
@@ -13,6 +14,12 @@ import (
 	"go-doc-editor/internal/service"
 	"go-doc-editor/internal/user"
 )
+
+func getProjectRoot() string {
+	_, filename, _, _ := runtime.Caller(0)
+	// main.go 在 cmd/server/main.go，向上三级到项目根目录
+	return filepath.Dir(filepath.Dir(filepath.Dir(filename)))
+}
 
 func main() {
 	// 定义命令行参数 --ai-key
@@ -24,6 +31,10 @@ func main() {
 	}
 
 	cfg := config.Load()
+
+	// 获取项目根目录（基于源文件位置，不依赖工作目录）
+	projectRoot := getProjectRoot()
+	staticDir := filepath.Join(projectRoot, "static")
 
 	// 用户存储（文件保存在基础存储目录的同级 data 文件夹）
 	dataDir := filepath.Join(filepath.Dir(cfg.StorageDir), "data")
@@ -66,13 +77,13 @@ func main() {
 	})
 
 	// 静态文件（前端页面）
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
-			http.ServeFile(w, r, "./static/index.html")
+			http.ServeFile(w, r, filepath.Join(staticDir, "index.html"))
 			return
 		}
-		http.ServeFile(w, r, "./static"+r.URL.Path)
+		http.ServeFile(w, r, filepath.Join(staticDir, r.URL.Path))
 	})
 
 	log.Printf("服务器启动，访问 http://localhost%s", cfg.Port)

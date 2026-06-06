@@ -10,7 +10,10 @@
 <div style="max-width: 1200px; margin: 0 auto;">
     <div style="background: white; border-radius: 32px; box-shadow: 0 20px 35px -12px rgba(0,0,0,0.12); overflow: hidden;">
         <!-- Hero 黑灰渐变 -->
-        <div style="background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%); color: white; padding: 64px 48px; text-align: center;">
+        <div style="background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%); color: white; padding: 64px 48px; text-align: center; position: relative;">
+            <div style="position: absolute; top: 20px; right: 28px; display: none;" id="profileBtnArea">
+                <a href="/profile.html" class="profile-btn-top" title="个人主页">👤</a>
+            </div>
             <div style="font-size: 3rem; margin-bottom: 16px;">⚫⚪</div>
             <h1 style="font-size: 2.5rem; font-weight: 700; letter-spacing: -1px; margin: 0 0 12px;">本地文档编辑器</h1>
             <p style="font-size: 1.1rem; opacity: 0.85; max-width: 500px; margin: 0 auto;">黑白之间 · 专注写作</p>
@@ -64,6 +67,7 @@
     if (isLoggedIn()) {
         document.querySelector('.cta-buttons').style.display = 'none';
         document.getElementById('loggedInArea').style.display = 'block';
+        document.getElementById('profileBtnArea').style.display = 'block';
     }
     document.getElementById('logoutBtn')?.addEventListener('click', () => {
         removeToken();

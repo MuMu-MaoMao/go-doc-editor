@@ -56,8 +56,33 @@ body {
 header {
     background: linear-gradient(135deg, #1a1a1a 0%, #2c2c2c 100%);
     color: white;
-    padding: 20px 28px;
+    padding: 20px 72px 20px 28px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+}
+
+/* 右上角圆形用户主页按钮 */
+.profile-btn-top {
+    position: absolute;
+    top: 20px;
+    right: 28px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    color: #1a1a1a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    font-size: 1.1rem;
+    transition: all 0.2s;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+.profile-btn-top:hover {
+    background: rgba(255, 255, 255, 1);
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 header h1 {
@@ -496,16 +521,43 @@ header p code {
     background: white;
     border-radius: 20px;
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
-    display: flex;
-    flex-direction: column;
     border: 1px solid var(--border);
     transform: translateY(20px);
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.25s ease, visibility 0.25s ease, transform 0.25s ease;
-    overflow: hidden;
-    resize: both;
 }
+
+.ai-chat-panel-inner {
+    overflow: hidden;
+    border-radius: inherit;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 拖拽中禁用 transition，防止卡顿 */
+.ai-chat-panel.dragging,
+.ai-chat-panel.dragging .ai-chat-panel-inner {
+    transition: none !important;
+    user-select: none;
+}
+
+/* ====== 8 个显式拉伸把手 ====== */
+.resize-handle {
+    position: absolute;
+    z-index: 1002;
+}
+/* 边把手 */
+.resize-handle[data-dir="n"] { top: -5px; left: 10px; right: 10px; height: 10px; cursor: n-resize; }
+.resize-handle[data-dir="s"] { bottom: -5px; left: 10px; right: 10px; height: 10px; cursor: s-resize; }
+.resize-handle[data-dir="e"] { right: -5px; top: 10px; bottom: 10px; width: 10px; cursor: e-resize; }
+.resize-handle[data-dir="w"] { left: -5px; top: 10px; bottom: 10px; width: 10px; cursor: w-resize; }
+/* 角把手（覆盖在边的交叉处，尺寸更大） */
+.resize-handle[data-dir="nw"] { top: -5px; left: -5px; width: 18px; height: 18px; cursor: nw-resize; }
+.resize-handle[data-dir="ne"] { top: -5px; right: -5px; width: 18px; height: 18px; cursor: ne-resize; }
+.resize-handle[data-dir="sw"] { bottom: -5px; left: -5px; width: 18px; height: 18px; cursor: sw-resize; }
+.resize-handle[data-dir="se"] { bottom: -5px; right: -5px; width: 18px; height: 18px; cursor: se-resize; }
 
 .ai-chat-panel.visible {
     transform: translateY(0);
@@ -522,6 +574,11 @@ header p code {
     align-items: center;
     font-size: 0.9rem;
     font-weight: 500;
+    cursor: grab;
+}
+
+.ai-chat-header:active {
+    cursor: grabbing;
 }
 
 .ai-chat-actions button {
@@ -638,7 +695,8 @@ header p code {
     align-items: flex-end;
 }
 
-.attach-btn {
+/* 统一样式的工具栏按钮（附带文档、角色选择器共用） */
+.toolbar-btn {
     background: transparent;
     border: 1px solid var(--border);
     border-radius: 14px;
@@ -648,17 +706,77 @@ header p code {
     transition: all 0.2s;
     color: var(--text-secondary);
     white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
 }
 
-.attach-btn:hover {
+.toolbar-btn:hover {
     background: var(--bg-hover);
     border-color: var(--border-dark);
 }
 
-.attach-btn.active {
+.toolbar-btn.active {
     background: #1a1a1a;
     color: white;
     border-color: #1a1a1a;
+}
+
+/* 角色下拉菜单容器 */
+.role-dropdown-wrapper {
+    position: relative;
+    display: inline-flex;
+}
+
+/* 角色下拉菜单（浮动层 — 向上弹出，避免被面板底部遮挡） */
+.role-dropdown-menu {
+    display: none;
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    z-index: 1001;
+    margin-bottom: 4px;
+    min-width: 220px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.1);
+    padding: 4px;
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.role-dropdown-menu.show {
+    display: block;
+}
+
+.role-dropdown-item {
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    transition: background 0.15s;
+}
+
+.role-dropdown-item:hover {
+    background: var(--bg-hover);
+}
+
+.role-dropdown-item.active {
+    background: var(--bg-active);
+    font-weight: 500;
+}
+
+.role-dropdown-item .role-name {
+    font-size: 0.85rem;
+    color: var(--text-primary);
+}
+
+.role-dropdown-item .role-desc {
+    font-size: 0.75rem;
+    color: var(--text-muted);
 }
 
 .ai-chat-input-row textarea {

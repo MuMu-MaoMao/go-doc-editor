@@ -11,6 +11,7 @@
     <header>
         <h1>本地文档<code>编辑器</code></h1>
         <p><code>文档保存在 C:\doxreader</code></p>
+        <a href="/profile.html" class="profile-btn-top" title="个人主页">👤</a>
     </header>
     <div class="main">
         <div class="sidebar">
@@ -40,23 +41,38 @@
 <button id="aiChatToggle" class="ai-toggle-btn" title="AI 助手">💬</button>
 
 <div id="aiChatPanel" class="ai-chat-panel">
-    <div class="ai-chat-header">
-        <span>🤖 AI 助手 (DeepSeek-Flash)</span>
-        <div class="ai-chat-actions">
-            <button id="aiChatClear" title="清空对话">🗑</button>
-            <button id="aiChatClose" title="关闭">✕</button>
+    <div class="ai-chat-panel-inner">
+        <div class="ai-chat-header">
+            <span>🤖 AI 助手</span>
+            <div class="ai-chat-actions">
+                <button id="aiChatClear" title="清空对话">🗑</button>
+                <button id="aiChatClose" title="关闭">✕</button>
+            </div>
+        </div>
+        <div class="ai-chat-messages" id="aiChatMessages"></div>
+        <div class="ai-chat-input-area">
+            <div class="ai-chat-input-toolbar">
+                <button id="aiChatAttachDoc" title="附带当前文档内容" class="toolbar-btn">📎 附带文档</button>
+                <div class="role-dropdown-wrapper" id="roleDropdownWrapper">
+                    <button id="aiChatRoleBtn" class="toolbar-btn" title="选择 AI 扮演的角色">🎭 专业编辑 ▼</button>
+                    <div class="role-dropdown-menu" id="roleDropdownMenu"></div>
+                </div>
+            </div>
+            <div class="ai-chat-input-row">
+                <textarea id="aiChatInput" placeholder="输入你的问题..." rows="3"></textarea>
+                <button id="aiChatSend">发送</button>
+            </div>
         </div>
     </div>
-    <div class="ai-chat-messages" id="aiChatMessages"></div>
-    <div class="ai-chat-input-area">
-        <div class="ai-chat-input-toolbar">
-            <button id="aiChatAttachDoc" title="附带当前文档内容" class="attach-btn">📎 附带文档</button>
-        </div>
-        <div class="ai-chat-input-row">
-            <textarea id="aiChatInput" placeholder="输入你的问题..." rows="3"></textarea>
-            <button id="aiChatSend">发送</button>
-        </div>
-    </div>
+    <!-- ====== 8 个显式拉伸把手 ====== -->
+    <div class="resize-handle" data-dir="n"></div>
+    <div class="resize-handle" data-dir="s"></div>
+    <div class="resize-handle" data-dir="e"></div>
+    <div class="resize-handle" data-dir="w"></div>
+    <div class="resize-handle" data-dir="ne"></div>
+    <div class="resize-handle" data-dir="nw"></div>
+    <div class="resize-handle" data-dir="se"></div>
+    <div class="resize-handle" data-dir="sw"></div>
 </div>
 
 <!-- Markdown 渲染库 -->

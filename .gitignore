@@ -1,0 +1,18 @@
+# 编译产物
+*.exe
+bin/
+main
+
+# 用户数据
+data/
+
+# 编辑器
+.vscode/
+.idea/
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# 日志（开发者本地）
+*.log

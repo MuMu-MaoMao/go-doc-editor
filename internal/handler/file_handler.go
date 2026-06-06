@@ -9,10 +9,12 @@ import (
 	"strings"
 )
 
+// FileHandler 处理文档 CRUD 相关的 HTTP 请求。
 type FileHandler struct {
 	service *service.FileService
 }
 
+// NewFileHandler 创建 FileHandler 实例，依赖文件服务。
 func NewFileHandler(svc *service.FileService) *FileHandler {
 	return &FileHandler{service: svc}
 }
@@ -28,6 +30,7 @@ func (h *FileHandler) writeError(w http.ResponseWriter, errMsg string, statusCod
 	json.NewEncoder(w).Encode(model.Response{Success: false, Error: errMsg})
 }
 
+// ListFiles 返回当前用户的文件列表（GET /api/files）。
 func (h *FileHandler) ListFiles(w http.ResponseWriter, r *http.Request) {
 	username, _ := middleware.GetUsernameFromContext(r.Context())
 	files, err := h.service.ListFiles(username)
@@ -38,6 +41,7 @@ func (h *FileHandler) ListFiles(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, model.Response{Success: true, Files: files})
 }
 
+// ReadFile 读取指定文件的内容（GET /api/file/{filename}）。
 func (h *FileHandler) ReadFile(w http.ResponseWriter, r *http.Request) {
 	filename := strings.TrimPrefix(r.URL.Path, "/api/file/")
 	if filename == "" {
@@ -57,6 +61,8 @@ func (h *FileHandler) ReadFile(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, model.Response{Success: true, Content: content})
 }
 
+// SaveFile 保存/覆盖指定文件（POST /api/file/{filename}）。
+// 请求体 JSON：{"content": "文件内容"}。
 func (h *FileHandler) SaveFile(w http.ResponseWriter, r *http.Request) {
 	filename := strings.TrimPrefix(r.URL.Path, "/api/file/")
 	if filename == "" {
@@ -76,6 +82,7 @@ func (h *FileHandler) SaveFile(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, model.Response{Success: true, Message: "文件保存成功"})
 }
 
+// DeleteFile 删除指定文件（DELETE /api/file/{filename}）。
 func (h *FileHandler) DeleteFile(w http.ResponseWriter, r *http.Request) {
 	filename := strings.TrimPrefix(r.URL.Path, "/api/file/")
 	if filename == "" {

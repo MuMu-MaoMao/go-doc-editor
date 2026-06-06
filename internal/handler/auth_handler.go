@@ -1,3 +1,5 @@
+// Package handler 提供 HTTP 处理函数（Controller 层）。
+// 负责解析 HTTP 请求、参数校验、调用 Service 层、编码响应。
 package handler
 
 import (
@@ -8,10 +10,12 @@ import (
 	"go-doc-editor/internal/user"
 )
 
+// AuthHandler 处理用户认证相关的 HTTP 请求（注册/登录）。
 type AuthHandler struct {
 	userStore *user.Store
 }
 
+// NewAuthHandler 创建 AuthHandler 实例，依赖用户存储。
 func NewAuthHandler(store *user.Store) *AuthHandler {
 	return &AuthHandler{userStore: store}
 }
@@ -33,6 +37,8 @@ type authResponse struct {
 	Error   string `json:"error,omitempty"`
 }
 
+// Register 处理用户注册请求（POST /api/register）。
+// 接收 JSON：{"username": "...", "password": "..."}。
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req registerRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -54,6 +60,9 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	writeAuthSuccess(w, "注册成功，请登录")
 }
 
+// Login 处理用户登录请求（POST /api/login）。
+// 验证身份后返回 JWT 令牌，并记录登录日志。
+// 接收 JSON：{"username": "...", "password": "..."}。
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req loginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -69,6 +78,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		writeAuthError(w, "生成令牌失败", http.StatusInternalServerError)
 		return
 	}
+	// 异步记录登录日志（不阻塞响应）
+	go h.userStore.RecordLogin(req.Username)
 	resp := authResponse{Success: true, Token: token, Message: "登录成功"}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)

@@ -15,13 +15,291 @@ const chatAttachDoc = document.getElementById('aiChatAttachDoc');
 // 对话历史（包含完整消息列表，用于发送给后端）
 let messages = [];
 
+// 当前角色状态
+let currentRoleId = null;        // 当前选中的角色 ID
+let roles = [];                  // 从后端获取的角色列表
+
+// 角色下拉菜单状态
+let roleDropdownOpen = false;
+
+// 拖拽状态
+let isDragging = false;
+let dragStartX = 0, dragStartY = 0;
+let dragPanelLeft = 0, dragPanelTop = 0;
+
+// 拉伸状态
+let isResizing = false;
+let resizeDirection = '';
+let resizeStartX = 0, resizeStartY = 0;
+let resizeStartW = 0, resizeStartH = 0;
+let resizeStartL = 0, resizeStartT = 0;
+
 // 附带文档 toggle 状态
 let attachDocument = false;
 
-// 初始化时添加 system 消息
-messages.push({
-    role: 'system',
-    content: '你是一个文档编辑助手。日常帮助用户编辑、润色、翻译、总结文档内容。请用中文回复。'
+// 从后端获取角色列表
+async function fetchRoles() {
+    try {
+        const res = await fetch('/api/ai/roles');
+        const data = await res.json();
+        if (data.success && data.roles && data.roles.length > 0) {
+            roles = data.roles;
+            // 默认不使用角色扮演（通用助手）
+            currentRoleId = null;
+            messages = [{ role: 'system', content: DEFAULT_SYSTEM_PROMPT }];
+            // 渲染角色下拉菜单
+            renderRoleDropdown();
+            updateRoleButtonText();
+        }
+    } catch (err) {
+        console.error('获取角色列表失败:', err);
+        // 保底：使用默认 system message
+        messages.push({
+            role: 'system',
+            content: '你是一个文档编辑助手。日常帮助用户编辑、润色、翻译、总结文档内容。请用中文回复。'
+        });
+    }
+}
+
+// 默认的通用 system prompt（未选择任何角色时使用）
+const DEFAULT_SYSTEM_PROMPT = '你是一个文档编辑助手。日常帮助用户编辑、润色、翻译、总结文档内容。请用中文回复。';
+
+// 切换到指定角色（传 null 表示不使用角色扮演，恢复默认助手）
+function switchToRole(roleId) {
+    currentRoleId = roleId;
+    const role = roleId ? roles.find(r => r.id === roleId) : null;
+    // 重置消息历史，第一条为 system prompt
+    messages = [{
+        role: 'system',
+        content: role ? role.systemPrompt : DEFAULT_SYSTEM_PROMPT
+    }];
+    // 更新角色按钮文本
+    updateRoleButtonText();
+}
+
+// 获取角色的短 emoji 标识
+function getRoleEmoji(roleId) {
+    const emojiMap = {
+        'professional-editor': '👔',
+        'humorous-writer': '😄',
+        'strict-mentor': '📐',
+        'friendly-reader': '📖',
+        'consultant': '💼'
+    };
+    return emojiMap[roleId] || '🎭';
+}
+
+// 更新角色按钮文字
+function updateRoleButtonText() {
+    const btn = document.getElementById('aiChatRoleBtn');
+    if (!btn) return;
+    if (!currentRoleId) {
+        btn.textContent = '🎭 不使用 ▼';
+        return;
+    }
+    const role = roles.find(r => r.id === currentRoleId);
+    if (role) {
+        btn.textContent = `${getRoleEmoji(role.id)} ${role.name} ▼`;
+    }
+}
+
+// 渲染角色下拉菜单选项
+function renderRoleDropdown() {
+    const menu = document.getElementById('roleDropdownMenu');
+    if (!menu) return;
+    menu.innerHTML = '';
+
+    // 第一项："不使用角色扮演"
+    const noneItem = document.createElement('div');
+    noneItem.className = 'role-dropdown-item' + (!currentRoleId ? ' active' : '');
+    noneItem.innerHTML = `
+        <span class="role-name">🚫 不使用角色扮演</span>
+        <span class="role-desc">恢复为通用 AI 编辑助手</span>
+    `;
+    noneItem.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!currentRoleId) { closeRoleDropdown(); return; }
+        switchToRole(null);
+        closeRoleDropdown();
+        chatMessages.innerHTML = '';
+        appendMessage('system', '🔄 已关闭角色扮演，恢复为通用助手');
+    });
+    menu.appendChild(noneItem);
+
+    // 分隔线
+    const divider = document.createElement('div');
+    divider.style.cssText = 'height:1px; background:var(--border); margin:4px 0;';
+    menu.appendChild(divider);
+
+    // 各预设角色
+    roles.forEach(role => {
+        const item = document.createElement('div');
+        item.className = 'role-dropdown-item' + (role.id === currentRoleId ? ' active' : '');
+        item.dataset.roleId = role.id;
+        item.innerHTML = `
+            <span class="role-name">${getRoleEmoji(role.id)} ${role.name}</span>
+            <span class="role-desc">${role.description}</span>
+        `;
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (role.id === currentRoleId) {
+                closeRoleDropdown();
+                return;
+            }
+            switchToRole(role.id);
+            closeRoleDropdown();
+            chatMessages.innerHTML = '';
+            appendMessage('system', `🔄 已切换到「${role.name}」角色`);
+        });
+        menu.appendChild(item);
+    });
+}
+
+// 打开角色下拉菜单
+function openRoleDropdown() {
+    const menu = document.getElementById('roleDropdownMenu');
+    if (!menu) return;
+    renderRoleDropdown();
+    menu.classList.add('show');
+    roleDropdownOpen = true;
+}
+
+// 关闭角色下拉菜单
+function closeRoleDropdown() {
+    const menu = document.getElementById('roleDropdownMenu');
+    if (!menu) return;
+    menu.classList.remove('show');
+    roleDropdownOpen = false;
+}
+
+// 切换角色下拉菜单
+function toggleRoleDropdown() {
+    if (roleDropdownOpen) {
+        closeRoleDropdown();
+    } else {
+        openRoleDropdown();
+    }
+}
+
+// 初始化时获取角色列表
+fetchRoles();
+
+// ====== 面板拖拽功能 ======
+const chatHeader = document.querySelector('.ai-chat-header');
+
+// 判断鼠标是否在 header 的按钮区域（不触发拖拽）
+function isHeaderButton(el) {
+    while (el && el !== chatHeader) {
+        if (el.tagName === 'BUTTON') return true;
+        el = el.parentElement;
+    }
+    return false;
+}
+
+chatHeader.addEventListener('mousedown', (e) => {
+    if (isHeaderButton(e.target)) return;
+    if (!chatPanel.classList.contains('visible')) return;
+    const rect = chatPanel.getBoundingClientRect();
+    chatPanel.style.left = rect.left + 'px';
+    chatPanel.style.top = rect.top + 'px';
+    chatPanel.style.right = 'auto';
+    chatPanel.style.bottom = 'auto';
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    dragPanelLeft = rect.left;
+    dragPanelTop = rect.top;
+    isDragging = true;
+    chatPanel.classList.add('dragging');
+    // 拖拽时全局禁止选中文本
+    document.body.style.userSelect = 'none';
+});
+
+// ====== 面板边框拉伸功能（使用 8 个显式把手） ======
+
+// 开始拉伸：被 resize handle 的 mousedown 调用
+function startResize(e, dir) {
+    if (!chatPanel.classList.contains('visible')) return;
+    const rect = chatPanel.getBoundingClientRect();
+    resizeDirection = dir;
+    resizeStartX = e.clientX;
+    resizeStartY = e.clientY;
+    resizeStartW = rect.width;
+    resizeStartH = rect.height;
+    resizeStartL = rect.left;
+    resizeStartT = rect.top;
+    // 切换到 left/top 坐标系
+    chatPanel.style.left = rect.left + 'px';
+    chatPanel.style.top = rect.top + 'px';
+    chatPanel.style.right = 'auto';
+    chatPanel.style.bottom = 'auto';
+    isResizing = true;
+    chatPanel.classList.add('dragging');
+    // 全局禁止选中文本
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = getComputedStyle(e.target).cursor;
+    e.preventDefault();
+}
+
+// 给所有 resize handle 绑定 mousedown
+document.querySelectorAll('.resize-handle').forEach(handle => {
+    handle.addEventListener('mousedown', (e) => {
+        if (isDragging || isResizing) return;
+        startResize(e, handle.dataset.dir);
+    });
+});
+
+// 全局 mousemove：处理拖拽和拉伸
+document.addEventListener('mousemove', (e) => {
+    if (isDragging && !isResizing) {
+        // 拖拽
+        let newLeft = e.clientX - (dragStartX - dragPanelLeft);
+        let newTop = e.clientY - (dragStartY - dragPanelTop);
+        const maxLeft = window.innerWidth - 100;
+        const maxTop = window.innerHeight - 100;
+        newLeft = Math.max(-chatPanel.offsetWidth + 100, Math.min(maxLeft, newLeft));
+        newTop = Math.max(-20, Math.min(maxTop, newTop));
+        chatPanel.style.left = newLeft + 'px';
+        chatPanel.style.top = newTop + 'px';
+        return;
+    }
+    if (isResizing) {
+        // 拉伸
+        let dx = e.clientX - resizeStartX;
+        let dy = e.clientY - resizeStartY;
+        let newW = resizeStartW, newH = resizeStartH;
+        let newL = resizeStartL, newT = resizeStartT;
+
+        if (resizeDirection.includes('e')) newW = Math.max(320, Math.min(750, resizeStartW + dx));
+        if (resizeDirection.includes('w')) {
+            newW = Math.max(320, Math.min(750, resizeStartW - dx));
+            newL = resizeStartL + (resizeStartW - newW);
+        }
+        if (resizeDirection.includes('s')) newH = Math.max(400, Math.min(window.innerHeight * 0.9, resizeStartH + dy));
+        if (resizeDirection.includes('n')) {
+            newH = Math.max(400, Math.min(window.innerHeight * 0.9, resizeStartH - dy));
+            newT = resizeStartT + (resizeStartH - newH);
+        }
+
+        chatPanel.style.width = newW + 'px';
+        chatPanel.style.height = newH + 'px';
+        chatPanel.style.left = newL + 'px';
+        chatPanel.style.top = newT + 'px';
+        chatPanel.style.right = 'auto';
+        chatPanel.style.bottom = 'auto';
+        e.preventDefault();
+        return;
+    }
+});
+
+// 全局 mouseup：停止拖拽和拉伸 + 恢复文本选中
+document.addEventListener('mouseup', () => {
+    if (isDragging || isResizing) {
+        isDragging = false;
+        isResizing = false;
+        chatPanel.classList.remove('dragging');
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+    }
 });
 
 // 切换面板可见性
@@ -47,6 +325,20 @@ if (chatAttachDoc) {
         chatAttachDoc.classList.toggle('active', attachDocument);
     });
 }
+
+// 角色按钮点击事件
+const chatRoleBtn = document.getElementById('aiChatRoleBtn');
+if (chatRoleBtn) {
+    chatRoleBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleRoleDropdown();
+    });
+}
+
+// 点击页面其他地方关闭角色下拉菜单
+document.addEventListener('click', () => {
+    if (roleDropdownOpen) closeRoleDropdown();
+});
 
 // 发送消息
 async function sendMessage(promptText) {
@@ -239,8 +531,21 @@ if (chatInput) {
     });
 }
 
-// 初始化欢迎消息
-appendMessage('system', '👋 你好！我是 AI 编辑助手 (DeepSeek-Flash)。\n• 在输入框提问，或点击工具栏"📤 问 AI"发送当前文档\n• 可以帮你润色、翻译、续写、总结、问答\n• 点击"📎 附带文档"可将当前文档内容作为上下文发送');
+// 初始化欢迎消息（在角色列表加载完成后显示）
+function showWelcomeMessage() {
+    const roleName = currentRoleId
+        ? (roles.find(r => r.id === currentRoleId)?.name || 'AI 编辑助手')
+        : '通用助手（未使用角色扮演）';
+    appendMessage('system', `👋 你好！当前：${roleName}\n• 在输入框提问，或点击工具栏"📤 问 AI"发送当前文档\n• 点击工具栏「🎭 角色名」可选择 AI 角色扮演\n• 点击"📎 附带文档"可将当前文档内容作为上下文发送`);
+}
+
+// 等待角色加载完成后显示欢迎消息
+const checkRolesLoaded = setInterval(() => {
+    if (roles.length > 0) {
+        clearInterval(checkRolesLoaded);
+        showWelcomeMessage();
+    }
+}, 100);
 
 // 导出供 editor.js 使用 — 启用附带文档并发送 prompt，复用 sendMessage
 export function sendDocumentToAI(prompt = '请帮我处理以下文档内容：') {

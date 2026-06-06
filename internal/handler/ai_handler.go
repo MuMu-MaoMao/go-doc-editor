@@ -1,3 +1,5 @@
+// Package handler 提供 HTTP 处理函数（Controller 层）。
+// 负责解析 HTTP 请求、参数校验、调用 Service 层、编码响应。
 package handler
 
 import (
@@ -9,18 +11,22 @@ import (
 	"net/http"
 )
 
+// AIHandler 处理 AI 对话相关的 HTTP 请求，支持 SSE 流式响应和角色列表查询。
 type AIHandler struct {
 	aiService *service.AIService
 }
 
+// NewAIHandler 创建 AIHandler 实例，依赖 AI 服务。
 func NewAIHandler(svc *service.AIService) *AIHandler {
 	return &AIHandler{aiService: svc}
 }
 
+// chatRequest 是 AI 对话接口的请求体，包含前端维护的完整消息历史。
 type chatRequest struct {
-	Messages []service.DeepseekMsg `json:"messages"` // 完整的对话历史（前端维护）
+	Messages []service.DeepseekMsg `json:"messages"`
 }
 
+// Chat 处理 AI 对话请求（POST /api/ai/chat），以 SSE 格式流式返回 AI 响应。
 func (h *AIHandler) Chat(w http.ResponseWriter, r *http.Request) {
 	// 验证登录（中间件已处理）
 	username, ok := middleware.GetUsernameFromContext(r.Context())
@@ -86,7 +92,17 @@ func (h *AIHandler) Chat(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[AI] 用户 %s AI 请求完成，总长度: %d", username, len(fullContent))
 }
 
-// SSE 转义：将内容包装为 SSE data 格式
+// ListRoles 返回预设角色列表（GET /api/ai/roles）。
+// 此接口无需认证，返回角色 ID、名称和描述（不含 systemPrompt）。
+func (h *AIHandler) ListRoles(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"roles":   service.GetRoles(),
+	})
+}
+
+// escapeSSE 将文本内容包装为 SSE 格式的 JSON 数据块。
 func escapeSSE(text string) string {
 	// 每块只包含纯文本 delta
 	escaped, _ := json.Marshal(map[string]string{"type": "chunk", "delta": text})

@@ -1,3 +1,11 @@
+> \> **📜 历史文档归档**
+> 本文档记录的是 AI 对话优化阶段的原始设计方案。
+> 该设计已被整合到规范体系中的 **ADR-003** 和 **ADR-004**。
+> 请查阅：[docs/adr/ADR-003-chat-history-management.md](./docs/adr/ADR-003-chat-history-management.md)
+> [docs/adr/ADR-004-markdown-rendering.md](./docs/adr/ADR-004-markdown-rendering.md)
+> 新功能开发请遵循：[docs/12-功能开发流程规范.md](./docs/12-功能开发流程规范.md)
+> *本文档保留作为历史参考。*
+
 # AI 对话功能优化方案
 
 ## 概述

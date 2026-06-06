@@ -115,6 +115,82 @@
             padding: 40px;
             color: var(--danger);
         }
+        /* AI Key 配置样式 */
+        .ai-key-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            margin-bottom: 8px;
+            background: #fafafa;
+            transition: all 0.15s;
+        }
+        .ai-key-item.active {
+            background: white;
+            border-color: #1a1a1a;
+        }
+        .ai-key-name {
+            font-weight: 500;
+            font-size: 0.9rem;
+            margin-bottom: 4px;
+        }
+        .ai-key-detail {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+        }
+        .ai-key-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .key-btn {
+            padding: 6px 14px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            background: white;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+        .key-btn:hover {
+            background: var(--bg-hover);
+        }
+        .key-badge {
+            font-size: 0.75rem;
+            color: #1a1a1a;
+            font-weight: 500;
+        }
+        .ai-key-form-inner {
+            background: #fafafa;
+            padding: 16px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .key-input {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 0.85rem;
+            transition: border-color 0.2s;
+        }
+        .key-input:focus {
+            outline: none;
+            border-color: #1a1a1a;
+        }
+        .key-select {
+            cursor: pointer;
+            background: white;
+        }
+        .ai-key-form-actions {
+            display: flex;
+            gap: 8px;
+        }
     </style>
 </head>
 <body>

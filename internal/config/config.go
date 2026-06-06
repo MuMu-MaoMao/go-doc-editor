@@ -15,21 +15,35 @@ import (
 // Config 存储项目的运行参数。
 type Config struct {
 	Port       string `json:"port"`       // 服务监听端口，如 ":3000"
-	StorageDir string `json:"storage"`       // 文档存储根目录，如 "C:\\doxreader"
-	MySQLDSN   string `json:"mysql_dsn"`     // MySQL 连接串
-	AIKey      string `json:"ai_key"`        // DeepSeek API 密钥
+	StorageDir string `json:"storage"`    // 文档存储根目录，如 "C:\\doxreader"
+	MySQLDSN   string `json:"mysql_dsn"`  // MySQL 连接串
 }
 
-// findProjectRoot 从当前源文件位置推算项目根目录。
-// config.go 在 internal/config/，向上两级即项目根目录。
-func findProjectRoot() string {
-	_, filename, _, _ := runtime.Caller(0)
-	return filepath.Dir(filepath.Dir(filename))
+// findConfigFile 尝试多个路径查找 config.json，返回第一个找到的。
+func findConfigFile() string {
+	_, srcFile, _, _ := runtime.Caller(0)
+	candidates := []string{
+		filepath.Join(filepath.Dir(filepath.Dir(srcFile)), "config.json"),
+		filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(srcFile))), "config.json"),
+	}
+	if wd, err := os.Getwd(); err == nil {
+		candidates = append(candidates, filepath.Join(wd, "config.json"))
+		candidates = append(candidates, filepath.Join(wd, "..", "config.json"))
+	}
+	for _, p := range candidates {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return ""
 }
 
 // loadConfigFile 读取项目根目录的 config.json，不存在时返回空配置。
 func loadConfigFile() *Config {
-	cfgPath := filepath.Join(findProjectRoot(), "config.json")
+	cfgPath := findConfigFile()
+	if cfgPath == "" {
+		return &Config{}
+	}
 	data, err := os.ReadFile(cfgPath)
 	if err != nil {
 		return &Config{}
@@ -51,19 +65,16 @@ func notEmpty(s, fallback string) string {
 }
 
 // Load 加载配置，优先级：环境变量 > 命令行参数 > config.json。
+// 数据库和 AI-Key 等敏感信息由用户在 profile 页面自行配置。
 func Load() *Config {
-	// 1. 读取 config.json 作为默认值
 	fileCfg := loadConfigFile()
 
-	// 2. 注册命令行参数（以 config.json 的值为默认值）
 	port := flag.String("port", notEmpty(fileCfg.Port, ":3000"), "服务器监听端口")
 	storageDir := flag.String("storage", notEmpty(fileCfg.StorageDir, "C:\\doxreader"), "文档存储目录")
 	mysqlDSN := flag.String("mysql-dsn", fileCfg.MySQLDSN, "MySQL 连接串")
-	aiKey := flag.String("ai-key", fileCfg.AIKey, "API Key for AI service")
 
 	flag.Parse()
 
-	// 3. 环境变量覆盖
 	if envPort := os.Getenv("PORT"); envPort != "" {
 		*port = ":" + envPort
 	}
@@ -73,14 +84,10 @@ func Load() *Config {
 	if envDSN := os.Getenv("MYSQL_DSN"); envDSN != "" {
 		*mysqlDSN = envDSN
 	}
-	if envKey := os.Getenv("AI_KEY"); envKey != "" {
-		*aiKey = envKey
-	}
 
 	return &Config{
 		Port:       *port,
 		StorageDir: *storageDir,
 		MySQLDSN:   *mysqlDSN,
-		AIKey:      *aiKey,
 	}
 }

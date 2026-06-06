@@ -1,6 +1,5 @@
 {
     "port": ":3000",
     "storage": "C:\\doxreader",
-    "mysql_dsn": "root:13579@tcp(localhost:3306)/godoxedit?charset=utf8mb4&parseTime=true",
-    "ai_key": "your-ai-key-here"
+    "mysql_dsn": "root:13579@tcp(localhost:3306)/godoxedit?charset=utf8mb4&parseTime=true"
 }

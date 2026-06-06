@@ -12,8 +12,6 @@ import (
 	"strings"
 )
 
-const deepseekAPIURL = "https://api.deepseek.com/v1/chat/completions"
-
 // Role 定义一个 AI 角色，包含身份标识、显示名、描述和系统提示词。
 type Role struct {
 	ID           string `json:"id"`           // 角色唯一标识，如 "professional-editor"
@@ -74,13 +72,12 @@ var DefaultRoles = []Role{
 }
 
 // AIService 封装 DeepSeek API 的调用逻辑，支持流式和非流式两种模式。
-type AIService struct {
-	apiKey string // DeepSeek API 密钥，通过命令行参数注入
-}
+// 调用时动态传入 API Key、URL 和模型名，不再全局绑定。
+type AIService struct{}
 
-// NewAIService 创建 AIService 实例，需提供 API 密钥。
-func NewAIService(apiKey string) *AIService {
-	return &AIService{apiKey: apiKey}
+// NewAIService 创建 AIService 实例（无状态，无需配置）。
+func NewAIService() *AIService {
+	return &AIService{}
 }
 
 // deepseekRequest 是 DeepSeek API 的请求体结构。
@@ -107,14 +104,28 @@ type deepseekStreamChunk struct {
 	} `json:"choices"`
 }
 
-// ChatStream 调用 DeepSeek 流式 API，将结果通过回调函数逐块返回
-// messages: 完整的消息列表（由前端维护，包含 system/user/assistant 历史）
+// ChatStream 调用 DeepSeek 流式 API，将结果通过回调函数逐块返回。
+// 参数均动态传入，支持每个用户使用自己的 Key、URL 和模型。
+// apiKey: DeepSeek API 密钥
+// apiURL: API 地址，如 https://api.deepseek.com/chat/completions
+// model: 模型名，如 deepseek-v4-flash / deepseek-v4-pro
+// messages: 完整的消息列表（由前端维护）
 // onChunk: 每次收到内容片段时调用
 // 返回完整内容（用于记录历史）
-func (s *AIService) ChatStream(messages []DeepseekMsg, onChunk func(text string)) (string, error) {
+// normalizeAPIURL 自动补全 API URL。
+// DeepSeek 端点格式为 https://api.deepseek.com/chat/completions（无 /v1/ 前缀）。
+func normalizeAPIURL(url string) string {
+	if strings.HasSuffix(url, "/chat/completions") {
+		return url
+	}
+	return strings.TrimRight(url, "/") + "/chat/completions"
+}
+
+func (s *AIService) ChatStream(apiKey, apiURL, model string, messages []DeepseekMsg, onChunk func(text string)) (string, error) {
+	apiURL = normalizeAPIURL(apiURL)
 
 	reqBody := deepseekRequest{
-		Model:       "deepseek-chat",
+		Model:       model,
 		Messages:    messages,
 		Stream:      true,
 		Temperature: 0.7,
@@ -126,12 +137,12 @@ func (s *AIService) ChatStream(messages []DeepseekMsg, onChunk func(text string)
 		return "", fmt.Errorf("序列化请求体失败: %v", err)
 	}
 
-	req, err := http.NewRequest("POST", deepseekAPIURL, bytes.NewReader(bodyBytes))
+	req, err := http.NewRequest("POST", apiURL, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return "", fmt.Errorf("创建请求失败: %v", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+s.apiKey)
+	req.Header.Set("Authorization", "Bearer "+apiKey)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -185,10 +196,9 @@ func (s *AIService) ChatStream(messages []DeepseekMsg, onChunk func(text string)
 }
 
 // Chat 是非流式版本的 AI 对话接口，适用于不需要实时输出的场景。
-// 内部调用 ChatStream 但仅返回完整内容，不触发回调。
-func (s *AIService) Chat(messages []DeepseekMsg) (string, error) {
+func (s *AIService) Chat(apiKey, apiURL, model string, messages []DeepseekMsg) (string, error) {
 	var fullContent string
-	_, err := s.ChatStream(messages, func(text string) {
+	_, err := s.ChatStream(apiKey, apiURL, model, messages, func(text string) {
 		fullContent += text
 	})
 	return fullContent, err

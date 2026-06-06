@@ -39,6 +39,17 @@ func InitTables(db *sql.DB) error {
 			INDEX idx_login_logs_username (username),
 			INDEX idx_login_logs_time (login_time)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+		`CREATE TABLE IF NOT EXISTS ai_keys (
+			id         BIGINT       AUTO_INCREMENT PRIMARY KEY,
+			username   VARCHAR(255) NOT NULL,
+			key_name   VARCHAR(100) NOT NULL,
+			api_key    VARCHAR(255) NOT NULL,
+			api_url    VARCHAR(255) NOT NULL DEFAULT 'https://api.deepseek.com/chat/completions',
+			model      VARCHAR(100) NOT NULL DEFAULT 'deepseek-v4-flash',
+			is_active  TINYINT(1)  NOT NULL DEFAULT 0,
+			created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			INDEX idx_ai_keys_username (username)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 	}
 	for _, q := range queries {
 		if _, err := db.Exec(q); err != nil {

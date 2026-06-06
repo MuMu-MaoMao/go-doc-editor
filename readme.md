@@ -42,16 +42,17 @@
 - MySQL 8.0+
 - DeepSeek API Key（或其他兼容的 OpenAI 格式 API Key）
 
+> **💡 AI-Key 不用在这里配置！** 启动后登录 → 点击右上角 👤 → 在个人主页添加自己的 AI-Key。
+
 ### 1. 配置 config.json
 
-项目根目录的 `config.json` 已包含除 AI Key 外的所有默认配置：
+`config.json` 已包含数据库等默认配置：
 
 ```json
 {
     "port": ":3000",
     "storage": "C:\\doxreader",
-    "mysql_dsn": "root:密码@tcp(localhost:3306)/godoxedit?charset=utf8mb4&parseTime=true",
-    "ai_key": "your-ai-key-here"
+    "mysql_dsn": "root:密码@tcp(localhost:3306)/godoxedit?charset=utf8mb4&parseTime=true"
 }
 ```
 
@@ -66,14 +67,8 @@ exit
 ### 2. 运行
 
 ```bash
-# 最简模式（AI Key 单独传入，其他参数从 config.json 读取）
-go run cmd/server/main.go --ai-key="你的AIKey"
-```
-
-或全部参数临时覆盖：
-
-```bash
-go run cmd/server/main.go --ai-key="你的AIKey" -port ":8080" -mysql-dsn "root:pass@tcp(...)/db?..."
+# 一键启动，无需任何参数！
+go run cmd/server/main.go
 ```
 
 ### 3. 访问
@@ -86,7 +81,7 @@ go run cmd/server/main.go --ai-key="你的AIKey" -port ":8080" -mysql-dsn "root:
 环境变量（最高）> 命令行参数 > config.json（最低）
 ```
 
-支持的环境变量：`PORT`、`STORAGE_DIR`、`MYSQL_DSN`、`AI_KEY`
+支持的环境变量：`PORT`、`STORAGE_DIR`、`MYSQL_DSN`
 
 ---
 
@@ -171,8 +166,12 @@ go-doc-editor/
 | GET | `/api/file/{filename}` | 读取指定文件内容 |
 | POST | `/api/file/{filename}` | 保存/覆盖指定文件 |
 | DELETE | `/api/file/{filename}` | 删除指定文件 |
-| POST | `/api/ai/chat` | AI 对话（SSE 流式返回） |
-| GET | `/api/user/profile` | 获取用户信息及登录历史 |
+| POST | `/api/ai/chat` | AI 对话（SSE 流式返回，使用用户配置的 Key） |
+| GET | `/api/user/profile` | 获取用户信息、登录历史、AI Key 列表 |
+| GET | `/api/user/ai-keys` | 获取 AI Key 列表 |
+| POST | `/api/user/ai-keys` | 新增 AI Key |
+| PUT | `/api/user/ai-keys/{id}/activate` | 激活指定 Key |
+| DELETE | `/api/user/ai-keys/{id}` | 删除指定 Key |
 
 ### AI 对话请求格式
 
@@ -202,7 +201,7 @@ data: {"type":"done","content":"完整回复"}
 3. **路径遍历防护**：`safeFilePath()` 校验文件名，防止目录穿越
 4. **用户隔离**：每个用户独立文档目录
 5. **SQL 注入防护**：全部使用参数化查询（`?` 占位符）
-6. **API 密钥安全**：AI Key 仅存后端，通过命令行传入，不硬编码
+6. **API 密钥安全**：AI Key 由用户在个人主页自行配置，无需命令行参数
 
 ---
 
@@ -220,6 +219,7 @@ data: {"type":"done","content":"完整回复"}
   - **📎 附带文档**：将当前文档作为上下文发送
   - 面板可拖拽、边框可拉伸
 - **用户主页**：右上角白底圆形按钮，展示用户名、注册时间、登录历史
+- **🔑 AI-Key 管理**：在 profile 页面自行添加/切换/删除 API-Key，支持 DeepSeek-v4-Flash 和 DeepSeek-v4-Pro 模型
 
 ---
 
@@ -242,6 +242,19 @@ CREATE TABLE login_logs (
     login_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX (username),
     INDEX (login_time)
+);
+
+-- AI-Key 配置表（用户可添加多个 Key，切换激活）
+CREATE TABLE ai_keys (
+    id         BIGINT AUTO_INCREMENT PRIMARY KEY,
+    username   VARCHAR(255) NOT NULL,
+    key_name   VARCHAR(100) NOT NULL,
+    api_key    VARCHAR(255) NOT NULL,
+    api_url    VARCHAR(255) NOT NULL DEFAULT 'https://api.deepseek.com/chat/completions',
+    model      VARCHAR(100) NOT NULL DEFAULT 'deepseek-v4-flash',
+    is_active  TINYINT(1) NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX (username)
 );
 ```
 
@@ -308,6 +321,8 @@ CREATE TABLE login_logs (
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-06-06 | v0.6.0 | 🎯 AI-Key 管理系统：用户自主配置 Key/URL/模型；移除 `--ai-key` 参数；模型升级至 deepseek-v4-flash/v4-pro |
+| 2026-06-06 | v0.5.0 | 🔑 AI-Key 管理功能：新增 `ai_keys` 表，用户主页可添加/激活/删除 Key |
 | 2026-06-06 | v0.4.0 | 新增配置文件 `config.json`，支持三种配置优先级 |
 | 2026-06-06 | v0.3.0 | 新增用户主页 + MySQL 数据库（users + login_logs 表） |
 | 2026-06-06 | v0.2.0 | AI 面板交互优化（拖拽 + 边框拉伸 + 角色选择器美化） |

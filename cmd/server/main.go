@@ -3,13 +3,13 @@ package main
 import (
     "log"
     "net/http"
-    "os"
     "path/filepath"
     "runtime"
     "strings"
 
     "go-doc-editor/internal/config"
     "go-doc-editor/internal/db"
+    "go-doc-editor/internal/docstore"
     "go-doc-editor/internal/handler"
     "go-doc-editor/internal/middleware"
     "go-doc-editor/internal/service"
@@ -42,12 +42,9 @@ func main() {
     projectRoot := getProjectRoot()
     staticDir := filepath.Join(projectRoot, "static")
 
-    if err := os.MkdirAll(filepath.Join(filepath.Dir(cfg.StorageDir), "data"), 0755); err != nil {
-        log.Fatalf("无法创建数据目录: %v", err)
-    }
-
     userStore := user.NewStore(database)
-    fileService := service.NewFileService(cfg.StorageDir)
+    docStore := docstore.NewStore(database)
+    fileService := service.NewFileService(docStore)
     aiService := service.NewAIService()
 
     authHandler := handler.NewAuthHandler(userStore)

@@ -39,6 +39,16 @@ func InitTables(db *sql.DB) error {
 			INDEX idx_login_logs_username (username),
 			INDEX idx_login_logs_time (login_time)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+		`CREATE TABLE IF NOT EXISTS documents (
+			id         BIGINT       AUTO_INCREMENT PRIMARY KEY,
+			username   VARCHAR(255) NOT NULL,
+			filename   VARCHAR(255) NOT NULL,
+			content    LONGTEXT,
+			created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			UNIQUE INDEX idx_documents_user_file (username, filename),
+			INDEX idx_documents_username (username)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 		`CREATE TABLE IF NOT EXISTS ai_keys (
 			id         BIGINT       AUTO_INCREMENT PRIMARY KEY,
 			username   VARCHAR(255) NOT NULL,

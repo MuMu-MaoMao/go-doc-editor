@@ -81,7 +81,7 @@ go run cmd/server/main.go
 环境变量（最高）> 命令行参数 > config.json（最低）
 ```
 
-支持的环境变量：`PORT`、`STORAGE_DIR`、`MYSQL_DSN`
+支持的环境变量：`PORT`、`MYSQL_DSN`
 
 ---
 
@@ -95,7 +95,7 @@ go-doc-editor/
 │
 ├── internal/
 │   ├── db/
-│   │   └── mysql.go                       # 🆕 MySQL 连接管理 & 自动建表
+│   │   └── mysql.go                       # MySQL 连接管理 & 自动建表
 │   ├── config/
 │   │   └── config.go                      # 配置管理（config.json + flag + env）
 │   ├── model/
@@ -103,9 +103,11 @@ go-doc-editor/
 │   ├── auth/
 │   │   └── jwt.go                         # JWT 生成与验证
 │   ├── user/
-│   │   └── store.go                       # 🔄 MySQL 版用户存储（注册/登录/日志查询）
+│   │   └── store.go                       # MySQL 版用户存储（注册/登录/日志查询）
+│   ├── docstore/
+│   │   └── doc_store.go                   # 🆕 文档数据库存储（基于 MySQL 的 CRUD）
 │   ├── service/
-│   │   ├── file_service.go                # 文件 CRUD + 路径安全校验
+│   │   ├── file_service.go                # 文件 CRUD 业务逻辑（委托给 docstore）
 │   │   └── ai_service.go                  # DeepSeek API 调用（流式/非流式）
 │   ├── handler/
 │   │   ├── auth_handler.go                # 注册/登录 API
@@ -198,10 +200,9 @@ data: {"type":"done","content":"完整回复"}
 
 1. **JWT 认证**：HS256 签名令牌，24 小时有效期
 2. **密码加密**：bcrypt 哈希存储，不保存明文
-3. **路径遍历防护**：`safeFilePath()` 校验文件名，防止目录穿越
-4. **用户隔离**：每个用户独立文档目录
-5. **SQL 注入防护**：全部使用参数化查询（`?` 占位符）
-6. **API 密钥安全**：AI Key 由用户在个人主页自行配置，无需命令行参数
+3. **SQL 注入防护**：全部使用参数化查询（`?` 占位符）
+4. **用户隔离**：所有查询按 username 过滤，数据库天然防止跨用户访问
+5. **API 密钥安全**：AI Key 由用户在个人主页自行配置，无需命令行参数
 
 ---
 
@@ -254,6 +255,18 @@ CREATE TABLE ai_keys (
     model      VARCHAR(100) NOT NULL DEFAULT 'deepseek-v4-flash',
     is_active  TINYINT(1) NOT NULL DEFAULT 0,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX (username)
+);
+
+-- 文档存储表（文档内容以 LONGTEXT 存储在数据库中）
+CREATE TABLE documents (
+    id         BIGINT AUTO_INCREMENT PRIMARY KEY,
+    username   VARCHAR(255) NOT NULL,
+    filename   VARCHAR(255) NOT NULL,
+    content    LONGTEXT,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE INDEX (username, filename),
     INDEX (username)
 );
 ```
@@ -321,6 +334,7 @@ CREATE TABLE ai_keys (
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-06-06 | v0.7.0 | 🗄️ 文档存储迁移至数据库：新增 `documents` 表，`docstore` 包，移除文件系统依赖，新增 ADR-005 |
 | 2026-06-06 | v0.6.0 | 🎯 AI-Key 管理系统：用户自主配置 Key/URL/模型；移除 `--ai-key` 参数；模型升级至 deepseek-v4-flash/v4-pro |
 | 2026-06-06 | v0.5.0 | 🔑 AI-Key 管理功能：新增 `ai_keys` 表，用户主页可添加/激活/删除 Key |
 | 2026-06-06 | v0.4.0 | 新增配置文件 `config.json`，支持三种配置优先级 |

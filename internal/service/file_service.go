@@ -1,104 +1,41 @@
+// Package service 实现核心业务逻辑层。
+// 基于 docstore 提供用户隔离的文档 CRUD 操作。
 package service
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
+	"go-doc-editor/internal/docstore"
 )
 
+// FileService 提供基于用户隔离的文档 CRUD 操作。
+// 内部委托给 docstore.Store 实现数据库存储。
 type FileService struct {
-	baseDir string // 基础存储目录，如 C:\doxreader
+	store *docstore.Store
 }
 
-func NewFileService(baseDir string) *FileService {
-	return &FileService{baseDir: baseDir}
+// NewFileService 创建 FileService 实例。
+// store 是已初始化的文档数据库存储。
+func NewFileService(store *docstore.Store) *FileService {
+	return &FileService{store: store}
 }
 
-// 获取用户专属目录
-func (s *FileService) getUserDir(username string) string {
-	return filepath.Join(s.baseDir, username)
-}
-
-// 确保用户目录存在
-func (s *FileService) EnsureUserDir(username string) error {
-	userDir := s.getUserDir(username)
-	return os.MkdirAll(userDir, 0755)
-}
-
-// 安全路径校验，基于具体用户目录
-func (s *FileService) safeFilePath(username, filename string) (string, error) {
-	if filename == "" {
-		return "", fmt.Errorf("文件名不能为空")
-	}
-	if strings.ContainsAny(filename, "/\\") || strings.Contains(filename, "..") {
-		return "", fmt.Errorf("文件名包含非法字符")
-	}
-	userDir := s.getUserDir(username)
-	absDir, err := filepath.Abs(userDir)
-	if err != nil {
-		return "", fmt.Errorf("无法解析目录: %v", err)
-	}
-	absPath, err := filepath.Abs(filepath.Join(userDir, filename))
-	if err != nil {
-		return "", fmt.Errorf("无法解析路径: %v", err)
-	}
-	if !strings.HasPrefix(absPath, absDir+string(os.PathSeparator)) && absPath != absDir {
-		return "", fmt.Errorf("非法路径访问")
-	}
-	return absPath, nil
-}
-
+// ListFiles 返回当前用户的文件列表，按文件名排序。
 func (s *FileService) ListFiles(username string) ([]string, error) {
-	if err := s.EnsureUserDir(username); err != nil {
-		return nil, err
-	}
-	entries, err := os.ReadDir(s.getUserDir(username))
-	if err != nil {
-		return nil, err
-	}
-	var names []string
-	for _, e := range entries {
-		if !e.IsDir() {
-			names = append(names, e.Name())
-		}
-	}
-	return names, nil
+	return s.store.ListFiles(username)
 }
 
+// ReadFile 读取指定文件的内容。
+// 文件不存在返回"文件不存在"错误。
 func (s *FileService) ReadFile(username, filename string) (string, error) {
-	safePath, err := s.safeFilePath(username, filename)
-	if err != nil {
-		return "", err
-	}
-	if _, err := os.Stat(safePath); os.IsNotExist(err) {
-		return "", fmt.Errorf("文件不存在")
-	}
-	content, err := os.ReadFile(safePath)
-	if err != nil {
-		return "", err
-	}
-	return string(content), nil
+	return s.store.ReadFile(username, filename)
 }
 
+// SaveFile 保存/覆盖指定文件。
 func (s *FileService) SaveFile(username, filename, content string) error {
-	safePath, err := s.safeFilePath(username, filename)
-	if err != nil {
-		return err
-	}
-	if err := s.EnsureUserDir(username); err != nil {
-		return err
-	}
-	return os.WriteFile(safePath, []byte(content), 0644)
+	return s.store.SaveFile(username, filename, content)
 }
 
+// DeleteFile 删除指定文件。
+// 文件不存在返回"文件不存在"错误。
 func (s *FileService) DeleteFile(username, filename string) error {
-	safePath, err := s.safeFilePath(username, filename)
-	if err != nil {
-		return err
-	}
-	if _, err := os.Stat(safePath); os.IsNotExist(err) {
-		return fmt.Errorf("文件不存在")
-	}
-	return os.Remove(safePath)
+	return s.store.DeleteFile(username, filename)
 }

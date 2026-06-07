@@ -6,6 +6,7 @@ import (
 	"go-doc-editor/internal/model"
 	"go-doc-editor/internal/service"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -31,11 +32,34 @@ func (h *FileHandler) writeError(w http.ResponseWriter, errMsg string, statusCod
 }
 
 // ListFiles 返回当前用户的文件列表（GET /api/files）。
+// 支持查询参数：
+//
+//	?category=ID     只返回指定分类下的文件
+//	?uncategorized=1  只返回未分类的文件
 func (h *FileHandler) ListFiles(w http.ResponseWriter, r *http.Request) {
 	username, _ := middleware.GetUsernameFromContext(r.Context())
-	files, err := h.service.ListFiles(username)
+
+	categoryParam := r.URL.Query().Get("category")
+	uncategorizedParam := r.URL.Query().Get("uncategorized")
+
+	var files []string
+	var err error
+
+	if uncategorizedParam == "1" {
+		files, err = h.service.ListUncategorizedFiles(username)
+	} else if categoryParam != "" {
+		catID, parseErr := strconv.ParseInt(categoryParam, 10, 64)
+		if parseErr != nil {
+			h.writeError(w, "无效的分类ID", http.StatusBadRequest)
+			return
+		}
+		files, err = h.service.ListFilesByCategory(username, catID)
+	} else {
+		files, err = h.service.ListFiles(username)
+	}
+
 	if err != nil {
-		h.writeError(w, "读取目录失败: "+err.Error(), http.StatusInternalServerError)
+		h.writeError(w, "读取文件列表失败: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	h.writeJSON(w, model.Response{Success: true, Files: files})

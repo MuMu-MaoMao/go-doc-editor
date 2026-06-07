@@ -4,6 +4,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -66,5 +67,53 @@ func InitTables(db *sql.DB) error {
 			return fmt.Errorf("建表失败: %v", err)
 		}
 	}
+
+	// 新增表：分类树
+	extraTables := []string{
+		`CREATE TABLE IF NOT EXISTS categories (
+			id         BIGINT       AUTO_INCREMENT PRIMARY KEY,
+			username   VARCHAR(255) NOT NULL,
+			name       VARCHAR(100) NOT NULL,
+			parent_id  BIGINT       DEFAULT NULL,
+			sort_order INT          NOT NULL DEFAULT 0,
+			created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			INDEX idx_cat_username (username),
+			INDEX idx_cat_parent (username, parent_id),
+			UNIQUE INDEX idx_cat_name_unique (username, parent_id, name)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+		`CREATE TABLE IF NOT EXISTS annotations (
+			id               BIGINT       AUTO_INCREMENT PRIMARY KEY,
+			username         VARCHAR(255) NOT NULL,
+			source_filename  VARCHAR(255) NOT NULL,
+			selected_text    TEXT         NOT NULL,
+			target_filename  VARCHAR(255) DEFAULT NULL,
+			comment          TEXT,
+			position_start   INT          NOT NULL DEFAULT 0,
+			position_end     INT          NOT NULL DEFAULT 0,
+			created_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			INDEX idx_anno_source (username, source_filename),
+			INDEX idx_anno_target (username, target_filename)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+	}
+	for _, q := range extraTables {
+		if _, err := db.Exec(q); err != nil {
+			return fmt.Errorf("建表失败: %v", err)
+		}
+	}
+
+	// documents 表加 category_id 字段（已存在则跳过）
+	if _, err := db.Exec(
+		`ALTER TABLE documents
+		 ADD COLUMN category_id BIGINT DEFAULT NULL COMMENT '所属分类ID',
+		 ADD INDEX idx_doc_category (username, category_id)`,
+	); err != nil {
+		// 字段已存在时忽略 Duplicate column 错误
+		if !strings.Contains(err.Error(), "Duplicate column") {
+			return fmt.Errorf("更新 documents 表失败: %v", err)
+		}
+	}
+
 	return nil
 }

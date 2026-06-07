@@ -10,35 +10,97 @@
 <div class="app">
     <header>
         <h1>本地文档<code>编辑器</code></h1>
-        <p><code>文档保存在 C:\doxreader</code></p>
+        <p>黑白之间 · 知识收纳</p>
         <a href="/profile.html" class="profile-btn-top" title="个人主页">👤</a>
     </header>
     <div class="main">
+        <!-- ========== 左侧边栏 ========== -->
         <div class="sidebar">
-            <h3>文档列表 <button id="refreshBtn" style="background:none; border:none; cursor:pointer;">↻</button></h3>
-            <ul class="file-list" id="fileList"><li style="justify-content:center;">加载中...</li></ul>
-            <div class="new-file">
-                <input type="text" id="newFileName" placeholder="新建文件，例如 笔记.txt">
-                <button id="createBtn">+ 新建文档</button>
-            </div>
-        </div>
-        <div class="editor">
-            <div class="toolbar">
-                <span class="current-file-badge" id="currentFile">未选择文件</span>
-                <div class="action-buttons">
-                    <button id="saveBtn">保存</button>
-                    <button id="aiSendToChatBtn" title="将当前文档内容发送给 AI 处理">📤 问 AI</button>
-                    <button id="deleteCurrentBtn">🗑 删除当前</button>
+            <!-- 分类区块 -->
+            <div class="sidebar-section">
+                <div class="sidebar-header">
+                    <h3>分类</h3>
+                    <button id="newCategoryBtn" class="sidebar-btn" title="新建分类">+</button>
+                </div>
+                <ul class="category-tree" id="categoryTree">
+                    <li class="cat-all" data-cat-id="">全部文档</li>
+                    <li class="cat-uncat" data-cat-id="__uncat__">未分类</li>
+                </ul>
+                <div class="new-category-form" id="newCategoryForm">
+                    <input type="text" id="newCatName" placeholder="分类名称">
+                    <div class="form-row">
+                        <select id="newCatParent"><option value="">作为大类</option></select>
+                        <button id="newCatConfirm">确定</button>
+                    </div>
                 </div>
             </div>
-            <textarea id="editor" placeholder="选择或新建一个文档开始编辑..."></textarea>
+
+            <!-- 文件区块 -->
+            <div class="file-section">
+                <div class="sidebar-header">
+                    <h3>文档</h3>
+                    <button id="refreshBtn" class="sidebar-btn" title="刷新列表">↻</button>
+                </div>
+                <ul class="file-list" id="fileList"></ul>
+                <div class="new-file">
+                    <input type="text" id="newFileName" placeholder="新建文件...">
+                    <button id="createBtn">新建</button>
+                </div>
+            </div>
+
+            <!-- 标注区块 -->
+            <div class="annotation-section" id="annotationSection">
+                <div class="sidebar-header">
+                    <h3>标注</h3>
+                </div>
+                <ul class="annotation-list" id="annotationList">
+                    <li style="justify-content:center;color:var(--text-muted);font-size:0.78rem;list-style:none;">打开文档查看标注</li>
+                </ul>
+                <div class="reference-section" id="referenceSection" style="display:none;">
+                    <div class="sidebar-header">
+                        <h3>被引用于</h3>
+                    </div>
+                    <ul class="reference-list" id="referenceList"></ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== 编辑器区域 ========== -->
+        <div class="editor">
+            <!-- 工具栏 -->
+            <div class="toolbar">
+                <div class="toolbar-left">
+                    <span class="current-file-badge" id="currentFile">未选择文件</span>
+                    <select class="file-category-select" id="fileCategorySelect" title="切换分类">
+                        <option value="">未分类</option>
+                    </select>
+                </div>
+                <div class="toolbar-right">
+                    <button id="saveBtn" class="toolbar-btn primary">保存</button>
+                    <button id="addAnnotationBtn" class="toolbar-btn secondary">标注</button>
+                    <button id="aiSendToChatBtn" class="toolbar-btn secondary" title="将当前文档发送给 AI">问 AI</button>
+                    <button id="minimizeBtn" class="toolbar-btn secondary" title="最小化">—</button>
+                    <button id="deleteCurrentBtn" class="toolbar-btn danger">删除</button>
+                </div>
+            </div>
+
+            <!-- 编辑框 -->
+            <textarea class="editor-textarea" id="editor" placeholder="选择或新建一个文档开始编辑..."></textarea>
+
+            <!-- 标注弹出气泡 -->
+            <div class="annotation-popup" id="annotationPopup">
+                <button id="annoHighlightBtn">+ 添加标注</button>
+            </div>
+
+            <!-- 状态栏 -->
             <div class="status" id="statusMsg">就绪</div>
         </div>
+
     </div>
 </div>
 
 <!-- ====== AI 对话面板 ====== -->
-<button id="aiChatToggle" class="ai-toggle-btn" title="AI 助手">💬</button>
+<button id="aiChatToggle" class="draggable-btn" title="AI 助手" style="bottom:28px;">💬</button>
 
 <div id="aiChatPanel" class="ai-chat-panel">
     <div class="ai-chat-panel-inner">
@@ -52,7 +114,7 @@
         <div class="ai-chat-messages" id="aiChatMessages"></div>
         <div class="ai-chat-input-area">
             <div class="ai-chat-input-toolbar">
-                <button id="aiChatAttachDoc" title="附带当前文档内容" class="toolbar-btn">📎 附带文档</button>
+                <button id="aiChatAttachDoc" class="toolbar-btn">📎 附带文档</button>
                 <div class="role-dropdown-wrapper" id="roleDropdownWrapper">
                     <button id="aiChatRoleBtn" class="toolbar-btn" title="选择 AI 扮演的角色">🎭 专业编辑 ▼</button>
                     <div class="role-dropdown-menu" id="roleDropdownMenu"></div>
@@ -64,7 +126,6 @@
             </div>
         </div>
     </div>
-    <!-- ====== 8 个显式拉伸把手 ====== -->
     <div class="resize-handle" data-dir="n"></div>
     <div class="resize-handle" data-dir="s"></div>
     <div class="resize-handle" data-dir="e"></div>
@@ -75,11 +136,12 @@
     <div class="resize-handle" data-dir="sw"></div>
 </div>
 
+<!-- 全局展开按钮（最小化后显示） -->
+<button id="globalRestoreBtn" class="draggable-btn" title="切换界面" style="bottom:100px;">⚫</button>
+
 <!-- Markdown 渲染库 -->
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<!-- DOMPurify XSS 防护 -->
 <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
-
 <script type="module" src="/static/auth.js"></script>
 <script type="module" src="/static/editor.js"></script>
 <script type="module" src="/static/ai-chat.js"></script>

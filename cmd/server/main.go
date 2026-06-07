@@ -49,6 +49,8 @@ func main() {
 
     authHandler := handler.NewAuthHandler(userStore)
     fileHandler := handler.NewFileHandler(fileService)
+    categoryHandler := handler.NewCategoryHandler(fileService)
+    annotationHandler := handler.NewAnnotationHandler(fileService)
     aiHandler := handler.NewAIHandler(aiService, userStore, "", "https://api.deepseek.com/chat/completions", "deepseek-v4-flash")
     profileHandler := handler.NewProfileHandler(userStore)
 
@@ -59,6 +61,28 @@ func main() {
     http.HandleFunc("/api/ai/chat", middleware.AuthMiddleware(aiHandler.Chat))
     http.HandleFunc("/api/files", middleware.AuthMiddleware(fileHandler.ListFiles))
     http.HandleFunc("/api/file/", func(w http.ResponseWriter, r *http.Request) {
+        // 标注相关路由
+        if strings.HasSuffix(r.URL.Path, "/annotations") && r.Method == http.MethodGet {
+            middleware.AuthMiddleware(annotationHandler.HandleList)(w, r)
+            return
+        }
+        if strings.HasSuffix(r.URL.Path, "/references") && r.Method == http.MethodGet {
+            middleware.AuthMiddleware(annotationHandler.HandleReferences)(w, r)
+            return
+        }
+        // 分类相关路由
+        if strings.HasSuffix(r.URL.Path, "/category") {
+            catHandler := categoryHandler
+            switch r.Method {
+            case http.MethodGet:
+                middleware.AuthMiddleware(catHandler.HandleGetDocCategory)(w, r)
+            case http.MethodPut:
+                middleware.AuthMiddleware(catHandler.HandleSetDocCategory)(w, r)
+            default:
+                http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+            }
+            return
+        }
         switch r.Method {
         case http.MethodGet:
             middleware.AuthMiddleware(fileHandler.ReadFile)(w, r)
@@ -66,6 +90,43 @@ func main() {
             middleware.AuthMiddleware(fileHandler.SaveFile)(w, r)
         case http.MethodDelete:
             middleware.AuthMiddleware(fileHandler.DeleteFile)(w, r)
+        default:
+            http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+        }
+    })
+    // 标注管理路由
+    http.HandleFunc("/api/annotations", func(w http.ResponseWriter, r *http.Request) {
+        if r.Method == http.MethodPost {
+            middleware.AuthMiddleware(annotationHandler.HandleCreate)(w, r)
+        } else {
+            http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+        }
+    })
+    http.HandleFunc("/api/annotations/", func(w http.ResponseWriter, r *http.Request) {
+        if r.Method == http.MethodDelete {
+            middleware.AuthMiddleware(annotationHandler.HandleDelete)(w, r)
+        } else {
+            http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+        }
+    })
+
+    // 分类管理路由
+    http.HandleFunc("/api/categories", func(w http.ResponseWriter, r *http.Request) {
+        switch r.Method {
+        case http.MethodGet:
+            middleware.AuthMiddleware(categoryHandler.HandleListTree)(w, r)
+        case http.MethodPost:
+            middleware.AuthMiddleware(categoryHandler.HandleCreate)(w, r)
+        default:
+            http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+        }
+    })
+    http.HandleFunc("/api/categories/", func(w http.ResponseWriter, r *http.Request) {
+        switch r.Method {
+        case http.MethodPut:
+            middleware.AuthMiddleware(categoryHandler.HandleRename)(w, r)
+        case http.MethodDelete:
+            middleware.AuthMiddleware(categoryHandler.HandleDelete)(w, r)
         default:
             http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
         }

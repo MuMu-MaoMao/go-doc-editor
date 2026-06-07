@@ -1,9 +1,9 @@
 # 本地文档编辑器 (go-doc-editor)
 
-一个基于 Go 构建的轻量级本地文档编辑器，支持用户认证、文档 CRUD 操作、AI 对话助手和用户主页。
+一个基于 Go 构建的轻量级**知识收纳整理**工具，支持文档管理、三级分类体系、关键语句标注与跨文档关联、AI 对话助手。
 
 > **📚 开发规范体系**：本项目已建立完整的开发流程规范，涵盖
-> 分支策略、提交规范、代码风格、架构规范、测试要求等。
+> 分支策略、提交规范、代码风格、架构规范、测试要求、范式 Super 等。
 > 从 [docs/INDEX.md](./docs/INDEX.md) 开始阅读。
 > 项目历史演进参见 [docs/00-项目历史沿革.md](./docs/00-项目历史沿革.md)。
 
@@ -15,20 +15,20 @@
 
 ```
 前端 (static/) → Handler (HTTP 适配) → Service (业务逻辑) → 外部资源
-                                       ├── MySQL（用户数据、登录日志）
-                                       ├── 文件系统（用户文档）
+                                       ├── MySQL（用户/文档/分类/标注）
                                        └── DeepSeek API（AI 对话）
 ```
 
-1. **数据库层** (`db`)：MySQL 连接管理，自动建表（users + login_logs）
+1. **数据库层** (`db`)：MySQL 连接管理，自动建表（users / login_logs / documents / categories / annotations / ai_keys）
 2. **配置层** (`config`)：支持 config.json / 命令行参数 / 环境变量三种配置方式
 3. **模型层** (`model`)：定义前后端交互的数据结构（请求/响应格式）
-4. **业务逻辑层** (`service`)：实现文件读写、路径安全校验、AI API 调用等核心功能
-5. **HTTP 处理层** (`handler`)：解析 HTTP 请求，调用业务层，封装 JSON 或 SSE 响应
-6. **认证层** (`auth` / `user`)：JWT 令牌生成验证、用户注册登录、密码加密存储
-7. **中间件层** (`middleware`)：HTTP 中间件，如 JWT 认证拦截
-8. **入口层** (`cmd/server`)：组装各模块、注册路由、启动服务
-9. **静态资源** (`static`)：前端 HTML/JS/CSS
+4. **存储层** (`docstore`)：基于 MySQL 的文档、分类、标注 CRUD 操作
+5. **业务逻辑层** (`service`)：文档 CRUD、分类管理、标注管理等核心业务
+6. **HTTP 处理层** (`handler`)：解析 HTTP 请求，调用业务层，封装 JSON 或 SSE 响应
+7. **认证层** (`auth` / `user`)：JWT 令牌生成验证、用户注册登录、密码加密存储
+8. **中间件层** (`middleware`)：HTTP 中间件，如 JWT 认证拦截
+9. **入口层** (`cmd/server`)：组装各模块、注册路由、启动服务
+10. **静态资源** (`static`)：前端 HTML/JS/CSS
 
 该架构实现了**关注点分离**，便于单独测试、扩展和维护。
 
@@ -105,15 +105,17 @@ go-doc-editor/
 │   ├── user/
 │   │   └── store.go                       # MySQL 版用户存储（注册/登录/日志查询）
 │   ├── docstore/
-│   │   └── doc_store.go                   # 🆕 文档数据库存储（基于 MySQL 的 CRUD）
+│   │   └── doc_store.go                   # 文档数据库存储 + 分类 CRUD + 标注 CRUD
 │   ├── service/
-│   │   ├── file_service.go                # 文件 CRUD 业务逻辑（委托给 docstore）
+│   │   ├── file_service.go                # 文档/分类/标注业务逻辑
 │   │   └── ai_service.go                  # DeepSeek API 调用（流式/非流式）
 │   ├── handler/
 │   │   ├── auth_handler.go                # 注册/登录 API
-│   │   ├── file_handler.go                # 文档操作 API
+│   │   ├── file_handler.go                # 文档操作 API（含分类筛选）
+│   │   ├── category_handler.go            # 分类树 CRUD + 文档归属分类
+│   │   ├── annotation_handler.go          # 关键语句标注 + 跨文档引用
 │   │   ├── ai_handler.go                  # AI 对话 API（SSE 流式）
-│   │   └── profile_handler.go             # 🆕 用户主页 API
+│   │   └── profile_handler.go             # 用户主页 API
 │   └── middleware/
 │       └── auth.go                        # JWT 认证拦截中间件
 │
@@ -174,6 +176,18 @@ go-doc-editor/
 | POST | `/api/user/ai-keys` | 新增 AI Key |
 | PUT | `/api/user/ai-keys/{id}/activate` | 激活指定 Key |
 | DELETE | `/api/user/ai-keys/{id}` | 删除指定 Key |
+| GET | `/api/categories` | 获取分类树（含子分类） |
+| POST | `/api/categories` | 创建分类（name / parentId） |
+| PUT | `/api/categories/{id}` | 重命名分类 |
+| DELETE | `/api/categories/{id}` | 删除分类（有子分类或文档时拒绝） |
+| PUT | `/api/file/{filename}/category` | 设置文档所属分类 |
+| GET | `/api/file/{filename}/category` | 获取文档当前分类 |
+| GET | `/api/files?category={id}` | 按分类筛选文档列表 |
+| GET | `/api/files?uncategorized=1` | 获取未分类文档列表 |
+| POST | `/api/annotations` | 创建标注（选中文本 + 关联文档 + 评语） |
+| GET | `/api/file/{filename}/annotations` | 获取文档的所有标注 |
+| GET | `/api/file/{filename}/references` | 获取引用某文档的标注（被引用于） |
+| DELETE | `/api/annotations/{id}` | 删除标注 |
 
 ### AI 对话请求格式
 
@@ -202,7 +216,10 @@ data: {"type":"done","content":"完整回复"}
 2. **密码加密**：bcrypt 哈希存储，不保存明文
 3. **SQL 注入防护**：全部使用参数化查询（`?` 占位符）
 4. **用户隔离**：所有查询按 username 过滤，数据库天然防止跨用户访问
-5. **API 密钥安全**：AI Key 由用户在个人主页自行配置，无需命令行参数
+5. **分类深度校验**：应用层限制最多三级分类（大类→中类→小类）
+6. **同级重名保护**：创建分类时检查同级下是否已存在同名分类
+7. **删除保护**：有子分类或有文档归属的分类不可删除
+8. **API 密钥安全**：AI Key 由用户在个人主页自行配置，无需命令行参数
 
 ---
 
@@ -212,15 +229,32 @@ data: {"type":"done","content":"完整回复"}
 - **用户认证**：登录/注册页面，Token 存储于 localStorage
 - **文档编辑器**：文件列表 + 文本编辑 + 新建/保存/删除
 - **自动认证**：fetch 自动携带 Token，401 自动跳转登录
+- **📂 三级分类体系**：
+  - 侧边栏树形分类浏览，点击折叠/展开
+  - 新建/重命名/删除分类（大类→中类→小类，限三级）
+  - 文档可归属到任意一级分类
+  - 按分类筛选文档列表
+  - 未分类文档独立入口
+- **📌 关键语句标注**：
+  - 选中文本弹出标注按钮
+  - 可关联到其他文档 + 添加评语
+  - 侧边栏标注面板展示当前文档的所有标注
+  - 被引用于提示（反向引用）
+  - 工具栏标注按钮备用入口
+- **🔄 全局最小化**：
+  - 整个编辑器可一键收起/展开（平滑缩放过渡）
+  - 收起后 ⚫ 和 💬 按钮可自由拖拽
+  - 展开时按钮丝滑飞回原位
 - **AI 对话面板**：
   - 浮动按钮呼出/隐藏
   - 完整对话历史管理（前端维护 messages 数组）
   - Markdown 渲染（marked + DOMPurify 防 XSS）
-  - **🎭 角色扮演**：5 种预设角色，可切换/关闭
-  - **📎 附带文档**：将当前文档作为上下文发送
+  - **角色扮演**：5 种预设角色，可切换/关闭
+  - **附带文档**：将当前文档作为上下文发送
   - 面板可拖拽、边框可拉伸
+- **设计风格**：极简黑白主题，无 emoji 图标（纯 CSS 视觉指示器）
 - **用户主页**：右上角白底圆形按钮，展示用户名、注册时间、登录历史
-- **🔑 AI-Key 管理**：在 profile 页面自行添加/切换/删除 API-Key，支持 DeepSeek-v4-Flash 和 DeepSeek-v4-Pro 模型
+- **AI-Key 管理**：在 profile 页面自行添加/切换/删除 API-Key，支持 DeepSeek-v4-Flash 和 DeepSeek-v4-Pro 模型
 
 ---
 
@@ -264,10 +298,42 @@ CREATE TABLE documents (
     username   VARCHAR(255) NOT NULL,
     filename   VARCHAR(255) NOT NULL,
     content    LONGTEXT,
+    category_id BIGINT DEFAULT NULL COMMENT '所属分类ID',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE INDEX (username, filename),
-    INDEX (username)
+    INDEX (username),
+    INDEX idx_doc_category (username, category_id)
+);
+
+-- 三级分类树（parent_id 自引用，应用层限制三级）
+CREATE TABLE categories (
+    id         BIGINT AUTO_INCREMENT PRIMARY KEY,
+    username   VARCHAR(255) NOT NULL,
+    name       VARCHAR(100) NOT NULL,
+    parent_id  BIGINT DEFAULT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX (username),
+    INDEX (username, parent_id),
+    UNIQUE INDEX (username, parent_id, name)
+);
+
+-- 关键语句标注表（支持跨文档关联）
+CREATE TABLE annotations (
+    id               BIGINT AUTO_INCREMENT PRIMARY KEY,
+    username         VARCHAR(255) NOT NULL,
+    source_filename  VARCHAR(255) NOT NULL,
+    selected_text    TEXT NOT NULL,
+    target_filename  VARCHAR(255) DEFAULT NULL,
+    comment          TEXT,
+    position_start   INT NOT NULL DEFAULT 0,
+    position_end     INT NOT NULL DEFAULT 0,
+    created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX (username, source_filename),
+    INDEX (username, target_filename)
 );
 ```
 
@@ -334,6 +400,8 @@ CREATE TABLE documents (
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-06-07 | v0.9.0 | 🎨 前端 UI 全面优化：设计系统重构、分类树折叠、全局最小化/拖拽、去 emoji 图标、极简主题 |
+| 2026-06-07 | v0.8.0 | 🧠 知识收纳整理系统：三级分类体系（大类→中类→小类）+ 关键语句标注与跨文档关联 + 范式 Super 流程 |
 | 2026-06-06 | v0.7.0 | 🗄️ 文档存储迁移至数据库：新增 `documents` 表，`docstore` 包，移除文件系统依赖，新增 ADR-005 |
 | 2026-06-06 | v0.6.0 | 🎯 AI-Key 管理系统：用户自主配置 Key/URL/模型；移除 `--ai-key` 参数；模型升级至 deepseek-v4-flash/v4-pro |
 | 2026-06-06 | v0.5.0 | 🔑 AI-Key 管理功能：新增 `ai_keys` 表，用户主页可添加/激活/删除 Key |
